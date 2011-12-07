@@ -1,0 +1,199 @@
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>deckprinter</title>
+	</head>
+	<body id="index">
+		<h1 id="schells_deckprinter"></h1>
+		<textarea id="textarea" style="width:100%; height:90%; overflow:scroll;">
+Artifacts
+2x Shield Sphere
+4x Ornithopter
+4x Chimeric Mass
+1x Contagion Clasp
+1x Contagion Engine
+4x Memnite
+4x Throne of Geth
+Creatures
+2x Cytoplast Manipulator
+4x Thrummingbird
+4x Typhoid Rats
+Enchantments
+2x Inexorable Tide
+2x Corrupted Conscience
+2x Phyresis
+Land
+2x Urza's Mine
+2x Urza's Power Plant
+2x Urza's Tower
+2x Dimir Aqueduct
+4x Drowned Catacomb
+4x Island
+4x Swamp
+Spells
+4x Tainted Strike
+Sideboard
+1x Vigean Graftmage
+1x Icy Prison
+2x Spoils of War
+4x Undermine
+2x Vampiric Link
+2x Surgical Extraction
+2x Doom Blade
+1x Sever the Bloodline
+		</textarea>
+		<input type="button" id="submit" action="#" onclick="importDeck()" value="submit"/>
+		<br />
+		<script type="text/javascript" charset="utf-8">
+			var createCardPkg = function (name, section, infoURL, amount, possibleImages) {
+				name = name || "unnamed card";
+				section = section || "";
+				infoURL = infoURL || "";
+				amount = amount || 1;
+				possibleImages = possibleImages || [];
+				return {
+					name : name,
+					section : section,
+					infoURL : infoURL,
+					amount : amount,
+					possibleImages : possibleImages,
+					toString : function () {
+						return '['+amount+'x'+' '+name+' ('+section+')]';
+					}
+				};
+			}
+			
+			var getCardImages = function (cards, callback) {
+				var requestsCompleted = 0;
+				for (var i = 0; i < cards.length; i++) {
+					var currentCard = cards[i];
+					currentCard.request = new XMLHttpRequest();
+					currentCard.request.open('GET', currentCard.infoURL, true);
+					currentCard.request.onreadystatechange = function (card) {
+						return function (e) {
+							if (card.request.readyState === 4) {
+								if (card.request.status === 200 || request.status === 0) {
+									var imgReg = /<img src="(http:\/\/magiccards.info\/scans[^"]*)"[^>]*>/g;
+									var match = card.request.response.match(imgReg);
+									if (match) {
+										var possibleImages = [];
+										var div = document.createElement('div');
+										for (var j = 0; j < match.length; j++) {
+											div.innerHTML = match[j];
+											var img = div.childNodes[0];
+											possibleImages.push(img.src);
+										}
+										card.possibleImages = possibleImages;
+									} else {
+										console.error('could not get images for '+card.name);
+									}
+								} else {
+									console.log('Error', card.request.statusText);
+								}
+								++requestsCompleted;
+								console.log(requestsCompleted,'out of',cards.length,'card infos received');
+								if (requestsCompleted == cards.length) {
+									callback();
+								}
+							}
+						};
+					}(currentCard);
+					currentCard.request.send("*");
+				}
+			};
+			
+			var getNextConflictedCard = function (cards) {
+				for (var i = 0; i < cards.length; i++) {
+					var currentCard = cards[i];
+					if (cards[i].possibleImages.length != 1) {
+						return cards[i];
+					}
+				}
+				return false;
+			};
+			
+			var resolveCard = function (card, callback) {
+				document.body.innerHTML = '<h3>I found multiple cards that match the name "'+card.name+'". Please resolve this conflict by clicking on the correct card.';
+				
+				for (var i = 0; i < card.possibleImages.length; i++) {
+					var img = document.createElement('img');
+					img.src = card.possibleImages[i];
+					var a = document.createElement('a');
+					a.href = "#";
+					a.appendChild(img);
+					a.onclick = function (cCard, cImg, cCallback) { 
+						return function () {
+							console.log('chose card with image src',cImg.src);
+							cCard.possibleImages = [cImg.src];
+							cCallback();
+						};
+					}(card, img, callback);
+					document.body.appendChild(a);
+				}
+			};
+			
+			var displayCards = function (cards) {
+				document.body.innerHTML = '';
+				var section = '';
+				for (var i = 0; i < cards.length; i++) {
+					var card = cards[i];
+					if (section != card.section) {
+						section = card.section;
+						var h3 = document.createElement('h3');
+						h3.innerHTML = section;
+						document.body.appendChild(h3);
+					}
+					for (var j = 0; j < card.amount; j++) {
+						var img = document.createElement('img');
+						img.src = card.possibleImages[0];
+						document.body.appendChild(img);
+					}	
+				}
+			};
+			
+			var createCards = function (lines) {
+				var section = "deck";
+				var cards = [];
+				for (var j = 0; j < lines.length; j++) {
+					var line = lines[j];
+					console.log('processing "'+line+'"');
+					var regex = /([0-9]*)x ([^$]*)/g;
+					var groups = regex.exec(line);
+					console.log('groups for "'+line+'" = '+groups);
+					if (groups && groups.length == 3) {
+						var nameOfCard = groups[2];
+						var amount = Number(groups[1]);
+						var src = 'http://magiccards.info/query?q='+nameOfCard;
+						var card = createCardPkg(nameOfCard, section, src, amount);
+						cards.push(card);
+					} else {
+						section = line;
+					}
+				}
+				return cards;
+			};
+			
+			var textArea = document.getElementById('textarea');
+			var importDeck = function importDeck() {
+				var text = textArea.innerHTML;
+				var lines = text.split('\n');
+				var cards = window.cards = createCards(lines);
+				getCardImages(cards, function () {
+					var resolveNextConflict = function () {
+						console.log('resolving conflicts...');
+						var conflict = getNextConflictedCard(cards);
+						if (conflict !== false) {
+							console.log('found conflict',conflict);
+							resolveCard(conflict, resolveNextConflict);
+						} else {
+							console.log('conflicts resolved...');
+							displayCards(cards);
+						}
+					};
+					resolveNextConflict();
+				});
+			};
+			
+		</script>
+	</body>
+</html>		
