@@ -163,18 +163,20 @@ Sideboard
 				document.body.innerHTML = 'controls<br/>';
 				var section = '';
 				var sizeSlider = document.createElement('input');
+				sizeSlider.id = 'sizeSlider';
 				sizeSlider.type = 'range';
 				sizeSlider.style.cssText = 'clear:left;';
 				sizeSlider.min = 10;
 				sizeSlider.max = 100;
 				sizeSlider.step = 1;
-				sizeSlider.value = 100;
+				sizeSlider.value = 70;
 				sizeSlider.onchange = function () {
 					adjustSize(cards, sizeSlider.value);
 				};
 				document.body.appendChild(sizeSlider);
 				var br = document.createElement('br');
 				document.body.appendChild(br);
+				var cardsLeft = 0;
 				for (var i = 0; i < cards.length; i++) {
 					var card = cards[i];
 					if (section != card.section) {
@@ -186,10 +188,12 @@ Sideboard
 					}
 					for (var j = 0; j < card.amount; j++) {
 						var img = createImg(card.possibleImages[0]);
+						cardsLeft++;
 						img.onload = function (thisCard, src) {
 							return function () {
 								thisCard.rawImage = new Image();
 								thisCard.rawImage.src = src;
+								cardsLeft--;
 							};
 						}(card, img.src);
 						card.images = card.images || [];
@@ -221,9 +225,10 @@ Sideboard
 				return cards;
 			};
 			
-			var textArea = document.getElementById('textarea');
 			var importDeck = function importDeck() {
-				var text = textArea.innerHTML;
+				var textArea = document.getElementById('textarea');
+				var text = textArea.value;
+				console.log('received data','\n',text);
 				var lines = text.split('\n');
 				var cards = window.cards = createCards(lines);
 				getCardImages(cards, function () {
