@@ -45,6 +45,13 @@ Sideboard
 		<input type="button" id="submit" action="#" onclick="importDeck()" value="submit"/>
 		<br />
 		<script type="text/javascript" charset="utf-8">
+			var createImg = function (src) {
+				var img = document.createElement('img');
+				img.src = src;
+				img.style.cssText = 'float:left;';
+				return img;
+			};
+			
 			var createCardPkg = function (name, section, infoURL, amount, possibleImages) {
 				name = name || "unnamed card";
 				section = section || "";
@@ -116,8 +123,7 @@ Sideboard
 				document.body.innerHTML = '<h3>I found multiple cards that match the name "'+card.name+'". Please resolve this conflict by clicking on the correct card.';
 				
 				for (var i = 0; i < card.possibleImages.length; i++) {
-					var img = document.createElement('img');
-					img.src = card.possibleImages[i];
+					var img = createImg(card.possibleImages[i]);
 					var a = document.createElement('a');
 					a.href = "#";
 					a.appendChild(img);
@@ -132,20 +138,62 @@ Sideboard
 				}
 			};
 			
+			var adjustSize = function (cards, percent) {
+				var avgWidth = 0;
+				var avgHeight = 0;
+				for (var i = 0; i < cards.length; i++) {
+					var card = cards[i];
+					var w = (card.rawImage.width*(percent/100));
+					var h = (card.rawImage.height*(percent/100));
+					avgWidth += w;
+					avgHeight += h;
+					if (card.images) {
+						for (var j = 0; j < card.images.length; j++) {
+							card.images[j].style.width = w.toFixed(0)+'px';
+							card.images[j].style.height = h.toFixed(0)+'px';
+						}
+					}
+				}
+				avgWidth = avgWidth/cards.length;
+				avgHeight = avgHeight/cards.length;
+				console.log('cards are approximately',[avgWidth,avgHeight],'in size');
+			};
+			
 			var displayCards = function (cards) {
-				document.body.innerHTML = '';
+				document.body.innerHTML = 'controls<br/>';
 				var section = '';
+				var sizeSlider = document.createElement('input');
+				sizeSlider.type = 'range';
+				sizeSlider.style.cssText = 'clear:left;';
+				sizeSlider.min = 10;
+				sizeSlider.max = 100;
+				sizeSlider.step = 1;
+				sizeSlider.value = 100;
+				sizeSlider.onchange = function () {
+					adjustSize(cards, sizeSlider.value);
+				};
+				document.body.appendChild(sizeSlider);
+				var br = document.createElement('br');
+				document.body.appendChild(br);
 				for (var i = 0; i < cards.length; i++) {
 					var card = cards[i];
 					if (section != card.section) {
 						section = card.section;
 						var h3 = document.createElement('h3');
+						h3.style.cssText = 'float:left; clear:right;';
 						h3.innerHTML = section;
-						document.body.appendChild(h3);
+						//document.body.appendChild(h3);
 					}
 					for (var j = 0; j < card.amount; j++) {
-						var img = document.createElement('img');
-						img.src = card.possibleImages[0];
+						var img = createImg(card.possibleImages[0]);
+						img.onload = function (thisCard, src) {
+							return function () {
+								thisCard.rawImage = new Image();
+								thisCard.rawImage.src = src;
+							};
+						}(card, img.src);
+						card.images = card.images || [];
+						card.images.push(img);
 						document.body.appendChild(img);
 					}	
 				}
